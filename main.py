@@ -1,5 +1,6 @@
 from pynput import keyboard, mouse
 import threading
+import sys 
 
 mouse_controller = mouse.Controller()
 mouse_clicker = mouse.Button.left
@@ -13,17 +14,18 @@ positions = {
     'wa': (117, 750),  # Diagonal up-left
     'sd': (237, 850),  # Diagonal down-right
     'sa': (117, 850),  # Diagonal down-left
-    'q': (1250, 650), # Kill
-    'm': (1300, 50),  # Map
-    'r': (1100, 800), # Report
-    'e': (1250, 800), # Use
-    'c': (1100, 650), # Vent
-    'f': (950, 800),  # Sabotage
-    'v': (950, 650)   # Vent (engineer only)
+    'q': (1250, 650),  # Kill
+    'm': (1300, 50),   # Map
+    'r': (1100, 800),  # Report
+    'e': (1250, 800),  # Use
+    'c': (1100, 650),  # Vent
+    'f': (950, 800),   # Sabotage
+    'v': (950, 650)    # Vent (engineer only)
 }
 
 keys_pressed = set()
 clicking = False
+toggle_active = True 
 
 def get_position_from_keys():
     if 'w' in keys_pressed and 'd' in keys_pressed:
@@ -52,9 +54,23 @@ def move_and_click():
         threading.Event().wait(0.1)  # Reduce lag
 
 def on_press(key):
-    global clicking
+    global clicking, toggle_active
     try:
-        if key.char in positions: 
+        # Quit the program if `=` key is pressed
+        if key.char == '=':
+            print("Quitting the program...")
+            sys.exit()
+
+        # Check for toggle key (` key)
+        if key.char == '`':
+            toggle_active = not toggle_active
+            if not toggle_active:
+                keys_pressed.clear()
+                clicking = False
+                mouse_controller.release(mouse_clicker)
+            return
+
+        if toggle_active and key.char in positions:
             keys_pressed.add(key.char)
             if not clicking:
                 clicking = True
@@ -65,9 +81,9 @@ def on_press(key):
 def on_release(key):
     global clicking
     try:
-        if key.char in positions: 
+        if toggle_active and key.char in positions:
             keys_pressed.discard(key.char)
-            if not keys_pressed:  # Stop clicking if no keys are pressed, prevents errors
+            if not keys_pressed:
                 clicking = False
                 mouse_controller.release(mouse_clicker)
     except AttributeError:
@@ -76,6 +92,8 @@ def on_release(key):
 def main():
     print("Press and hold keys for movement and mouse click-and-hold.")
     print("Supported keys: w, a, s, d, q, m, r, e, c.")
+    print("Press ` to toggle functionality ON/OFF.")
+    print("Press = to quit.")
     print("Press 'Ctrl+C' to stop.")
     with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
         listener.join()
